@@ -17,7 +17,7 @@ print('numpy version: {}'.format(np.__version__))
 sys.path.append('dataset')
 from blender import sphere
 from blender.utils import hex2rgb, deg2rad, random_like_color
-
+from blender import bbox
 
 def _init_world(cfg_bg, cfg_light, brick_file_path):
     # remove all elements in scene
@@ -290,7 +290,7 @@ def random_background_surface_flat(numx=20, numy=20, amp=0.2, scale=0.5, locatio
 """
 
 
-def render_brick(brick_file_path, number_of_images, render_folder, cfg):
+def render_brick(brick_file_path, number_of_images, render_folder, classid, cfg):
     # create world, camera, light and background
     world, cam, light = _init_world(cfg['world']['background'], cfg['world']['light'], brick_file_path)
     logging.info('initialized world successfully')
@@ -373,6 +373,16 @@ def render_brick(brick_file_path, number_of_images, render_folder, cfg):
         brick_class = os.path.splitext(os.path.basename(brick_file_path))[0]
         render.filepath = os.path.join(render_folder, brick_class + '_' + str(i) + '.jpg')
         bpy.ops.render.render(write_still=True)
+        
+        labels_txt = os.path.join(render_folder, brick_class + '_' + str(i) + '.txt')
+        
+        frame_start = bpy.context.scene.frame_start
+        
+        bbox.write_bounds_2d(labels_txt, bpy.context.scene,render, cam, brick, frame_start, frame_start,classid)
+        
+        bblabels_txt = os.path.join(render_folder, brick_class + '_' + str(i) + '.bblabel')
+        
+        bbox.write_bounds_2d_bblabel(bblabels_txt, bpy.context.scene,render, cam, brick, frame_start, frame_start,classid)
 
         # remove current background
         world.texture_slots.clear(0)
@@ -400,7 +410,11 @@ def parse_args(parser):
         "-c", "--config", dest="config", required=False, default='augmentation.json',
         help="path to config file"
     )
-
+    
+    parser.add_argument(
+        "-cid", "--classid", dest="classid", required=False, default=0,
+        help="classid of the model in integer"
+    )
     parser.add_argument(
         "-v", "--verbose", required=False, action="store_true",
         help="verbosity mode and log to file"
@@ -456,6 +470,6 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(logging.StreamHandler())
 
     # try:
-    render_brick(args.input, args.number, args.save, cfg)
+    render_brick(args.input, args.number, args.save, args.classid,cfg)
     # except Exception as e:
     #    logging.error(e)
